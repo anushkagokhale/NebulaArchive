@@ -5,13 +5,20 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class GeminiChatbot {
-    // Double-check this key is exactly what Google gave you!
-    private static final String API_KEY = "AIzaSyC3-bC4NtAg7zWWLt5hKAPVdcLChlnMW-E";
-    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + "AIzaSyC3-bC4NtAg7zWWLt5hKAPVdcLChlnMW-E";
+    // SECURITY FIX: No more hardcoded key.
+    // We pull it from the system environment variables.
+    private static final String API_KEY = System.getenv("GEMINI_API_KEY");
+
+    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + API_KEY;
 
     private final OkHttpClient client = new OkHttpClient();
 
     public String askGemini(String prompt) {
+        // Safety check to make sure the environment variable is actually set
+        if (API_KEY == null || API_KEY.isEmpty()) {
+            return "Setup Error: GEMINI_API_KEY not found in Environment Variables.";
+        }
+
         try {
             JSONObject textObj = new JSONObject().put("text", prompt);
             JSONArray partsArray = new JSONArray().put(textObj);
@@ -31,7 +38,6 @@ public class GeminiChatbot {
                 String responseBody = response.body().string();
 
                 if (!response.isSuccessful()) {
-                    // This will tell us EXACTLY what Google is complaining about
                     System.err.println("Google Debug: " + responseBody);
                     return "Error from Google: " + response.code();
                 }
