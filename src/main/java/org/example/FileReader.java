@@ -18,13 +18,19 @@ public class FileReader {
 
     public static void main(String[] args) throws Exception {
         FileReader reader = new FileReader();
+        NLPClassifier brain = new NLPClassifier(); // 1. Wake up the brain
 
-        // Test it — drop any PDF or DOCX on your desktop and put the path here
         String testFilePath = "test.pdf";
         System.out.println("Reading file: " + testFilePath);
+
+        // 2. Extract the text like before
         String extractedText = reader.extractText(testFilePath);
-        System.out.println("Extracted Text");
-        System.out.println(extractedText);
+
+        // 3. The "Intelligence" step: Classify the text
+        String category = brain.classify(extractedText);
+
+        System.out.println("Extracted Content: " + extractedText.trim());
+        System.out.println("AI Predicted Folder: " + category);
         System.out.println("Done");
     }
-}
+    }
