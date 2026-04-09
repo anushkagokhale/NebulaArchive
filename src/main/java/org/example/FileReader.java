@@ -2,50 +2,80 @@ package org.example;
 
 import org.apache.tika.Tika;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class FileReader {
     private final Tika tika = new Tika();
     private final NLPClassifier brain = new NLPClassifier();
     public final DatabaseManager db = new DatabaseManager();
-    // 1. ADD THIS: Link to your new Vault Manager
     private final MinioManager vault = new MinioManager();
 
     public void startSystem() {
         db.initializeDatabase();
-        System.out.println("NebulaArchive System Online");
+        System.out.println("NebulaArchive Intelligence System Online");
+    }
+
+    public void processDirectory(String folderName) {
+        File folder = new File(folderName);
+        File[] fileList = folder.listFiles();
+
+        if (fileList == null || fileList.length == 0) {
+            System.out.println("The Drop Zone is empty!");
+            return;
+        }
+
+        for (File file : fileList) {
+            if (file.isFile()) {
+                processFile(file.getPath());
+            }
+        }
     }
 
     public void processFile(String filePath) {
-        try {
-            // A. The Eyes: Extract text
-            String text = tika.parseToString(new File(filePath));
+        File file = new File(filePath);
+        String fileName = file.getName();
 
-            // B. The Brain: Classify via AI logic
+        // Use try-with-resources to FORCE the file to close immediately after reading
+        try (InputStream stream = new FileInputStream(file)) {
+            String text = tika.parseToString(stream);
             String category = brain.classify(text);
 
-            // C. The Memory: Log to database
-            db.saveFileRecord(filePath, category);
+            db.saveFileRecord(fileName, category);
+            vault.uploadFile(category, filePath, fileName);
 
-            // 2. ADD THIS: The Hands - Upload/Move file to the Vault
-            // This uses the AI category to decide which folder it goes into!
-            vault.uploadFile(category, filePath, new File(filePath).getName());
-
-            System.out.println("Analysis: " + filePath + " is categorized as " + category);
-            System.out.println("Status: Fully processed and secured in vault.");
+            System.out.println("Sorted: " + fileName + " -> [" + category + "]");
 
         } catch (Exception e) {
-            System.err.println("Processing Error: " + e.getMessage());
+            System.err.println("Critical Error during processing: " + e.getMessage());
+            return; // Stop here if we can't even read the file
+        }
+
+        // Now that the 'try' block is over, the stream is officially CLOSED.
+        // We can safely move the file.
+        try {
+            Path source = Paths.get(filePath);
+            Path destDir = Paths.get("processed_vault");
+            if (!Files.exists(destDir)) Files.createDirectories(destDir);
+
+            Path target = destDir.resolve(fileName);
+
+            // Move the file, overwriting if it already exists in the vault
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("Successfully moved to processed_vault.");
+
+        } catch (Exception e) {
+            System.err.println("Windows Lock persist: " + fileName + ". Manual move required.");
         }
     }
 
     public static void main(String[] args) {
         FileReader app = new FileReader();
         app.startSystem();
-
-        // Execution
-        app.processFile("test.pdf");
-
-        // Search Test: Finding all Education documents
-        app.db.getFilesByCategory("Education");
+        app.processDirectory("to_be_sorted");
     }
 }
