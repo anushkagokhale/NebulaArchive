@@ -1,7 +1,6 @@
 package org.example;
 
-import io.minio.MinioClient;
-import io.minio.UploadObjectArgs;
+import io.minio.*;
 
 public class MinioManager {
     private final MinioClient minioClient = MinioClient.builder()
@@ -9,12 +8,19 @@ public class MinioManager {
             .credentials("minioadmin", "minioadmin")
             .build();
 
-    // Updated to accept two arguments to match your FileReader
-    public void uploadFile(String fileName, String filePath) {
+    public void uploadToCategory(String fileName, String filePath, String category) {
         try {
+            String bucketName = category.toLowerCase().replaceAll("[^a-z0-0]", "-");
+            if (bucketName.isEmpty()) bucketName = "uncategorized";
+
+            boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+            if (!found) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+            }
+
             minioClient.uploadObject(
                     UploadObjectArgs.builder()
-                            .bucket("nebula-vault")
+                            .bucket(bucketName)
                             .object(fileName)
                             .filename(filePath)
                             .build());
